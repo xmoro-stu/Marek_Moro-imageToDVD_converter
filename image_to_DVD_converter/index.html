@@ -1,0 +1,525 @@
+<!DOCTYPE html>
+<html lang="sk">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Konvertor obrazka do plavajuceho DVD loga</title>
+
+  <style>
+    *{
+      margin:0;
+      padding:0;
+      box-sizing:border-box;
+    }
+
+    body{
+      overflow:hidden;
+      background:#000;
+      font-family:Arial,sans-serif;
+    }
+
+    canvas{
+      position:absolute;
+      top:0;
+      left:0;
+    }
+
+    .ui{
+      position:fixed;
+      top:20px;
+      left:50%;
+      transform:translateX(-50%);
+
+      display:flex;
+      align-items:center;
+      gap:15px;
+
+      padding:12px 24px;
+
+      border:1px solid rgb(153, 0, 255);
+      border-radius:20px;
+
+      background:rgba(0,0,0,0.8);
+
+      backdrop-filter:blur(10px);
+
+      box-shadow:0 0 25px rgb(153, 0, 255);
+
+      z-index:1000;
+    }
+
+    h1{
+      color:white;
+      font-size:1.1rem;
+      text-shadow:0 0 15px rgb(153, 0, 255);
+      white-space:nowrap;
+    }
+
+    input,
+    button{
+      padding:9px 16px;
+
+      border-radius:12px;
+
+      border:1px solid rgb(153, 0, 255);
+
+      background:black;
+
+      color:rgb(153, 0, 255);
+
+      cursor:pointer;
+
+      transition:0.3s;
+
+      font-size:0.85rem;
+    }
+
+    button:hover{
+      background:rgb(153, 0, 255);
+      color:black;
+    }
+
+    .start-btn{
+      border-color:#00ff66;
+      color:#00ff66;
+      box-shadow:0 0 20px #00ff66;
+    }
+
+    .reset-btn{
+      border-color:#ff0033;
+      color:#ff0033;
+      box-shadow:0 0 20px #ff0033;
+    }
+
+    .back-btn{
+      position:fixed;
+      top:20px;
+      left:20px;
+      z-index:1000;
+    }
+
+  </style>
+</head>
+<body>
+
+<button
+  class="back-btn"
+  onclick="history.back()">
+
+  ← Späť na portál
+
+</button>
+
+<div class="ui">
+
+  <h1>Nahraj obrázok na transformáciu do DVD loga</h1>
+
+  <input
+    type="file"
+    id="upload"
+    accept="image/*">
+
+  <button
+    class="start-btn"
+    id="startBtn">
+
+    ŠTART
+
+  </button>
+
+  <button
+    class="reset-btn"
+    id="resetBtn">
+
+    RESET
+
+  </button>
+
+</div>
+
+<canvas id="canvas"></canvas>
+
+<script>
+
+const canvas =
+  document.getElementById("canvas");
+
+const ctx =
+  canvas.getContext("2d");
+
+canvas.width =
+  window.innerWidth;
+
+canvas.height =
+  window.innerHeight;
+
+let img = null;
+
+let running = false;
+
+let animId = null;
+
+let px = 200;
+let py = 200;
+
+let vx = 3;
+let vy = 2.2;
+
+let glowColor = "#ff9900";
+
+const COLORS = [
+
+  "#ff9900",
+  "#ff00ff",
+  "#00ffff",
+  "#00ff66",
+  "#ff0033",
+  "#ffff00",
+  "#ff6600",
+  "#cc00ff"
+
+];
+
+const LW = 260;
+const LH = 340;
+const GAP = 40;
+
+const LOGO_W =
+  LW * 3 + GAP * 2;
+
+const LOGO_H =
+  LH;
+
+document
+  .getElementById("upload")
+  .addEventListener("change",(e)=>{
+
+    const file =
+      e.target.files[0];
+
+    if(!file) return;
+
+    const image = new Image();
+
+    image.onload = ()=>{
+
+      img = image;
+    };
+
+    image.src =
+      URL.createObjectURL(file);
+  });
+
+document
+  .getElementById("startBtn")
+  .addEventListener("click",()=>{
+
+    if(!img || running) return;
+
+    running = true;
+
+    animate();
+  });
+
+document
+  .getElementById("resetBtn")
+  .addEventListener("click",()=>{
+
+    running = false;
+
+    cancelAnimationFrame(animId);
+
+    px = 200;
+    py = 200;
+
+    vx = 3;
+    vy = 2.2;
+
+    ctx.clearRect(
+      0,
+      0,
+      canvas.width,
+      canvas.height
+    );
+  });
+
+function randomColor(){
+
+  glowColor =
+    COLORS[
+      Math.floor(
+        Math.random() *
+        COLORS.length
+      )
+    ];
+}
+
+function bounce(){
+
+  let hit = false;
+
+  if(px <= 0){
+
+    px = 0;
+
+    vx = Math.abs(vx);
+
+    hit = true;
+  }
+
+  if(
+    px + LOGO_W >=
+    canvas.width
+  ){
+
+    px =
+      canvas.width - LOGO_W;
+
+    vx =
+      -Math.abs(vx);
+
+    hit = true;
+  }
+
+  if(py <= 0){
+
+    py = 0;
+
+    vy = Math.abs(vy);
+
+    hit = true;
+  }
+
+  if(
+    py + LOGO_H >=
+    canvas.height
+  ){
+
+    py =
+      canvas.height - LOGO_H;
+
+    vy =
+      -Math.abs(vy);
+
+    hit = true;
+  }
+
+  if(hit){
+
+    vx +=
+      (Math.random()-0.5)*0.4;
+
+    vy +=
+      (Math.random()-0.5)*0.4;
+
+    randomColor();
+  }
+}
+
+
+function pathD(c, mirrored=false){
+
+  c.beginPath();
+
+  if(!mirrored){
+
+    c.moveTo(0,0);
+
+    c.lineTo(70,0);
+
+    c.bezierCurveTo(
+      240,0,
+      240,340,
+      70,340
+    );
+
+    c.lineTo(0,340);
+
+  }else{
+
+    c.moveTo(260,0);
+
+    c.lineTo(190,0);
+
+    c.bezierCurveTo(
+      20,0,
+      20,340,
+      190,340
+    );
+
+    c.lineTo(260,340);
+  }
+
+  c.closePath();
+}
+
+function pathV(c){
+
+  c.beginPath();
+
+  c.moveTo(0,0);
+
+  c.lineTo(90,0);
+
+  c.lineTo(130,220);
+
+  c.lineTo(170,0);
+
+  c.lineTo(260,0);
+
+  c.lineTo(160,340);
+
+  c.lineTo(100,340);
+
+  c.closePath();
+}
+
+
+function renderLetter(
+  x,
+  y,
+  shapeFn,
+  sx,
+  sw
+){
+
+  const off =
+    document.createElement("canvas");
+
+  off.width = LW;
+  off.height = LH;
+
+  const oc =
+    off.getContext("2d");
+
+  // DRAW LETTER SHAPE
+
+  shapeFn(oc);
+
+  oc.fillStyle = "white";
+
+  oc.fill();
+
+  // IMAGE ONLY INSIDE LETTER
+
+  oc.globalCompositeOperation =
+    "source-in";
+
+  oc.drawImage(
+
+    img,
+
+    sx,
+    0,
+    sw,
+    img.height,
+
+    0,
+    0,
+    LW,
+    LH
+  );
+
+ 
+  // GLOW
+
+  ctx.save();
+
+  ctx.shadowColor =
+    glowColor;
+
+  ctx.shadowBlur = 35;
+
+  ctx.drawImage(
+    off,
+    x,
+    y
+  );
+
+  ctx.restore();
+}
+
+
+
+function drawDVD(){
+
+  if(!img) return;
+
+  const slice =
+    img.width / 3;
+
+  renderLetter(
+
+    px,
+    py,
+
+    (c)=>pathD(c,false),
+
+    0,
+    slice
+  );
+
+  renderLetter(
+
+    px + LW + GAP,
+    py,
+
+    (c)=>pathV(c),
+
+    slice,
+    slice
+  );
+
+ renderLetter(
+    px + (LW + 2*GAP) * 2,
+    py,
+    (c) => pathD(c, false), // Odstránený translate a scale
+    slice * 2,
+    slice
+  );
+}
+
+
+function animate(){
+
+  if(!running) return;
+
+  ctx.fillStyle =
+    "rgba(0,0,0,0.12)";
+
+  ctx.fillRect(
+    0,
+    0,
+    canvas.width,
+    canvas.height
+  );
+
+  px += vx;
+  py += vy;
+
+  bounce();
+
+  drawDVD();
+
+  animId =
+    requestAnimationFrame(
+      animate
+    );
+}
+
+window.addEventListener(
+  "resize",
+  ()=>{
+
+    canvas.width =
+      window.innerWidth;
+
+    canvas.height =
+      window.innerHeight;
+  }
+);
+
+</script>
+
+</body>
+</html>
